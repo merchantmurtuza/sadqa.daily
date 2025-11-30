@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sadqa Daily Tracker</title>
+  <style>
+    :root{font-family:Inter,system-ui,Arial,sans-serif;color:#0f172a}
+    body{margin:0;padding:0;background:linear-gradient(180deg,#fbfdff,#f7fafc)}
+    .app{max-width:980px;margin:22px auto;padding:18px}
+    header{display:flex;align-items:center;justify-content:space-between;background:linear-gradient(90deg,#0ea5a4,#6366f1);color:#fff;padding:14px;border-radius:12px;box-shadow:0 6px 24px rgba(99,102,241,0.12)}
+    header h1{font-size:20px;margin:0;font-weight:700;letter-spacing:0.2px}
+    header .muted{color:rgba(255,255,255,0.9);font-size:13px}
+    .card{background:#fff;border-radius:12px;padding:14px;margin:14px 0;box-shadow:0 6px 18px rgba(2,6,23,0.04)}
+    .accent-card{border-left:6px solid #6366f1}
+    .other-card{border-left:6px solid #f97316}
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+    label{display:block;font-size:13px;margin-bottom:6px;color:#111827}
+    input,select,button,textarea{font-size:14px;padding:8px;border-radius:8px;border:1px solid #e6edf3;outline:none}
+    input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(99,102,241,0.08)}
+    button{cursor:pointer;background:#6366f1;color:#fff;border:none}
+    .muted{color:#6b7280;font-size:13px}
+    table{width:100%;border-collapse:collapse}
+    th,td{padding:8px;border-bottom:1px solid #eef2f7;text-align:left;font-size:14px}
+    .right{text-align:right}
+    .pill{display:inline-block;padding:6px 10px;border-radius:999px;background:transparent;border:1px solid rgba(2,6,23,0.04);font-weight:600}
+    .danger{background:#fff1f2;color:#991b1b;border-left:4px solid #ef4444}
+    .success{background:#ecfdf5;color:#065f46;border-left:4px solid #10b981}
+    .controls{display:flex;gap:8px;flex-wrap:wrap}
+    .small{font-size:13px;padding:6px 10px;border-radius:8px;background:#eef2ff;color:#1e40af;border:1px solid rgba(30,64,175,0.12)}
+    .note{font-size:13px;color:#374151}
+    .summary-row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+    .stat{background:linear-gradient(180deg,#fff,#fbfdff);padding:10px;border-radius:8px;min-width:150px;box-shadow:0 4px 10px rgba(2,6,23,0.03)}
+    @media(max-width:600px){header{flex-direction:column;align-items:flex-start;gap:8px}}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <h1>Sadqa Daily Tracker</h1>
+      <div class="muted">Timezone: Asia/Kolkata</div>
+    </header>
+
+    <div class="card" id="dashboard">
+      <div class="grid">
+        <div>
+          <label>Daily Sadqa Amount (currency)
+            <input type="number" id="dailyAmount" min="0" step="0.01" />
+          </label>
+        </div>
+        <div>
+          <label>Start Date
+            <input type="date" id="startDate" />
+          </label>
+        </div>
+        <div>
+          <label>Actions</label>
+          <div class="controls">
+            <button id="saveSettings" class="small">Save Settings</button>
+            <button id="generate" class="small">Generate Scheduled Days</button>
+            <button id="exportCsv" class="small">Export CSV</button>
+            <button id="clearAll" class="small danger">Reset All</button>
+          </div>
+        </div>
+      </div>
+
+      <hr style="margin:12px 0;border:none;border-top:1px solid #eef2f7" />
+
+      <div class="summary-row">
+        <div class="stat">
+          <div class="muted">Scheduled total</div>
+          <div id="scheduledTotal" style="font-size:18px;font-weight:700">₹0</div>
+        </div>
+        <div class="stat">
+          <div class="muted">Total Paid</div>
+          <div id="totalPaid" style="font-size:18px;font-weight:700">₹0</div>
+        </div>
+        <div class="stat">
+          <div class="muted">Pending</div>
+          <div id="pending" style="font-size:18px;font-weight:700">₹0</div>
+        </div>
+        <div class="stat">
+          <div class="muted">Credit (Overpayment)</div>
+          <div id="credit" style="font-size:18px;font-weight:700">₹0</div>
+        </div>
+        <div class="stat">
+          <div class="muted">Other Sadqa Total</div>
+          <div id="otherTotal" style="font-size:18px;font-weight:700">₹0</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-top:0">Add Payment</h3>
+      <div class="grid">
+        <div>
+          <label>Payment Date
+            <input type="date" id="paymentDate" />
+          </label>
+        </div>
+        <div>
+          <label>Amount
+            <input type="number" id="paymentAmount" min="0" step="0.01" />
+          </label>
+        </div>
+        <div>
+          <label>Note
+            <input type="text" id="paymentNote" placeholder="e.g. gave for 3 days / charity" />
+          </label>
+        </div>
+        <div>
+          <label>Apply To</label>
+          <select id="applyMode">
+            <option value="oldest">Apply to oldest pending (default)</option>
+            <option value="specific">Apply to specific dates</option>
+            <option value="other">Other Sadqa (not linked to daily)</option>
+          </select>
+        </div>
+      </div>
+      <div id="specificDatesArea" style="display:none;margin-top:8px">
+        <label>Select scheduled dates to apply to (comma separated yyyy-mm-dd):
+          <input type="text" id="specificDates" placeholder="2025-11-01,2025-11-03" />
+        </label>
+      </div>
+      <div style="margin-top:8px" class="controls">
+        <button id="addPayment" class="small">Add Payment</button>
+        <button id="applyCreditToFuture" class="small">Apply Credit to Future</button>
+      </div>
+      <div class="note" style="margin-top:8px">You can pay multiple days together; the app will apply to oldest unpaid by default. Overpayment becomes credit. Use <strong>Other Sadqa</strong> to record one-time donations not mapped to daily schedule.</div>
+    </div>
+
+    <div class="card accent-card">
+      <h3 style="margin-top:0">Scheduled Days</h3>
+      <div style="max-height:260px;overflow:auto">
+        <table id="scheduledTable">
+          <thead><tr><th>Date</th><th>Amount</th><th>Remaining</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card" id="paymentsCard">
+      <h3 style="margin-top:0">Payments (applied / leftover)</h3>
+      <div style="max-height:260px;overflow:auto">
+        <table id="paymentsTable">
+          <thead><tr><th>Date</th><th>Amount</th><th>Note</th><th>Applied</th><th>Actions</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card other-card">
+      <h3 style="margin-top:0">Other Sadqa (one-time / extra)</h3>
+      <div style="max-height:220px;overflow:auto">
+        <table id="otherTable">
+          <thead><tr><th>Date</th><th>Amount</th><th>Note</th><th>Actions</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <footer style="text-align:center;margin-top:8px" class="muted">Single-file demo app — data stored in browser localStorage. Use Export to extract data.</footer>
+  </div>
+
+  <script>
+    const K = {
+      formatMoney(v){ return '₹' + Number(v||0).toFixed(2) },
+      todayISO(){ const now = new Date(); const y = now.getFullYear(); const m = String(now.getMonth()+1).padStart(2,'0'); const d = String(now.getDate()).padStart(2,'0'); return `${y}-${m}-${d}`; },
+      daysBetween(a,b){ const da=new Date(a); const db=new Date(b); return Math.floor((db - da) / (24*60*60*1000)); },
+      addDays(dateStr, n){ const d=new Date(dateStr); d.setDate(d.getDate()+n); return d.toISOString().slice(0,10); }
+    }
+
+    const LS = { settings: 'sadqa_settings_v1', scheduled: 'sadqa_scheduled_v1', payments: 'sadqa_payments_v1', otherSadqa: 'sadqa_other_v1', audit: 'sadqa_audit_v1' }
+
+    function loadJSON(key, def){ try{ const s=localStorage.getItem(key); return s?JSON.parse(s):def; }catch(e){ return def; } }
+    function saveJSON(key,val){ localStorage.setItem(key, JSON.stringify(val)); }
+
+    let settings = loadJSON(LS.settings, { dailyAmount:10, startDate: K.todayISO() });
+    let scheduled = loadJSON(LS.scheduled, []);
+    let payments = loadJSON(LS.payments, []);
+    let otherSadqa = loadJSON(LS.otherSadqa, []);
+    let audit = loadJSON(LS.audit, []);
+
+    const dailyAmountInput = document.getElementById('dailyAmount');
+    const startDateInput = document.getElementById('startDate');
+    const saveSettingsBtn = document.getElementById('saveSettings');
+    const generateBtn = document.getElementById('generate');
+    const scheduledTableBody = document.querySelector('#scheduledTable tbody');
+    const paymentsTableBody = document.querySelector('#paymentsTable tbody');
+    const otherTableBody = document.querySelector('#otherTable tbody');
+    const scheduledTotalEl = document.getElementById('scheduledTotal');
+    const totalPaidEl = document.getElementById('totalPaid');
+    const pendingEl = document.getElementById('pending');
+    const creditEl = document.getElementById('credit');
+    const otherTotalEl = document.getElementById('otherTotal');
+    const exportCsvBtn = document.getElementById('exportCsv');
+    const clearAllBtn = document.getElementById('clearAll');
+    const paymentDate = document.getElementById('paymentDate');
+    const paymentAmount = document.getElementById('paymentAmount');
+    const paymentNote = document.getElementById('paymentNote');
+    const applyMode = document.getElementById('applyMode');
+    const specificDatesArea = document.getElementById('specificDatesArea');
+    const specificDatesInput = document.getElementById('specificDates');
+    const addPaymentBtn = document.getElementById('addPayment');
+    const applyCreditToFutureBtn = document.getElementById('applyCreditToFuture');
+
+    function renderSettings(){ dailyAmountInput.value = settings.dailyAmount; startDateInput.value = settings.startDate; }
+
+    function persistAll(){ saveJSON(LS.settings, settings); saveJSON(LS.scheduled, scheduled); saveJSON(LS.payments, payments); saveJSON(LS.otherSadqa, otherSadqa); saveJSON(LS.audit, audit); }
+
+    function generateScheduled(){
+      const start = settings.startDate;
+      const today = K.todayISO();
+      const days = K.daysBetween(start, today);
+      if(days < 0){ alert('Start date cannot be in the future'); return; }
+      const map = Object.fromEntries(scheduled.map(s=>[s.date,s]));
+      const arr = [];
+      for(let i=0;i<=days;i++){
+        const date = K.addDays(start, i);
+        if(map[date]){ map[date].amount = Number(settings.dailyAmount); arr.push(map[date]); } else { arr.push({ id: 'S'+date, date, amount: Number(settings.dailyAmount), remaining: Number(settings.dailyAmount) }); }
+      }
+      scheduled = arr;
+      audit.push({ts:new Date().toISOString(), action:'generate_scheduled', note:`from ${start} to ${today}`});
+      persistAll(); recalcAndRender();
+    }
+
+    function recalcAndRender(){
+      scheduled.forEach(s=> s.remaining = Number(s.amount));
+      payments.forEach(p=>{ if(p.applications && p.applications.length){ p.applications.forEach(a=>{ const s = scheduled.find(x=>x.date === a.date); if(s){ s.remaining = Number((s.remaining - a.amount).toFixed(2)); } }); } });
+      const scheduledTotal = scheduled.reduce((s,x)=>s + Number(x.amount),0);
+      const totalPaid = payments.reduce((s,p)=>s + Number(p.amount),0);
+      const totalRemaining = scheduled.reduce((s,x)=>s + Math.max(0, Number(x.remaining)),0);
+      const appliedSum = payments.reduce((s,p)=> s + (p.applications? p.applications.reduce((ss,a)=>ss+Number(a.amount),0):0), 0);
+      const paidForSchedule = payments.filter(p=>p.mode !== 'other').reduce((s,p)=>s + Number(p.amount),0);
+      let credit = Number((paidForSchedule - appliedSum).toFixed(2)); if(credit < 0) credit = 0;
+      scheduledTotalEl.textContent = K.formatMoney(scheduledTotal);
+      totalPaidEl.textContent = K.formatMoney(totalPaid);
+      pendingEl.textContent = K.formatMoney(totalRemaining);
+      creditEl.textContent = K.formatMoney(credit);
+      otherTotalEl.textContent = K.formatMoney(otherSadqa.reduce((s,o)=>s+Number(o.amount),0));
+      renderScheduledTable(); renderPaymentsTable(); renderOtherTable(); persistAll();
+    }
+
+    function renderScheduledTable(){ scheduledTableBody.innerHTML = ''; scheduled.forEach(s=>{ const tr = document.createElement('tr'); const status = Number(s.remaining) <= 0 ? 'Paid' : (Number(s.remaining) < Number(s.amount) ? 'Partial' : 'Unpaid'); tr.innerHTML = `<td>${s.date}</td><td>${K.formatMoney(s.amount)}</td><td>${K.formatMoney(Math.max(0,Number(s.remaining)))}</td><td><span class='pill ${status==='Paid'?'success':(status==='Partial'?'':'') }'>${status}</span></td><td><div class='controls'><button class='small' data-d='${s.date}' onclick='editScheduled("${s.date}")'>Edit</button><button class='small danger' onclick='deleteScheduled("${s.date}")'>Delete</button></div></td>`; scheduledTableBody.appendChild(tr); }); }
+
+    function renderPaymentsTable(){ paymentsTableBody.innerHTML = ''; payments.forEach((p,idx)=>{ const tr = document.createElement('tr'); const appliedText = (p.applications && p.applications.length) ? p.applications.map(a=>`${a.date}: ${K.formatMoney(a.amount)}`).join(' | ') : (p.mode === 'other' ? 'Other' : 'Not applied'); tr.innerHTML = `<td>${p.paymentDate}</td><td>${K.formatMoney(p.amount)}</td><td>${(p.note||'')}</td><td>${appliedText}</td><td><div class='controls'><button class='small' onclick='editPayment(${idx})'>Edit</button><button class='small danger' onclick='deletePayment(${idx})'>Delete</button></div></td>`; paymentsTableBody.appendChild(tr); }); }
+
+    function renderOtherTable(){ otherTableBody.innerHTML = ''; otherSadqa.forEach((o,idx)=>{ const tr = document.createElement('tr'); tr.innerHTML = `<td>${o.date}</td><td>${K.formatMoney(o.amount)}</td><td>${o.note||''}</td><td><div class='controls'><button class='small' onclick='editOther(${idx})'>Edit</button><button class='small danger' onclick='deleteOther(${idx})'>Delete</button></div></td>`; otherTableBody.appendChild(tr); }); }
+
+    saveSettingsBtn.addEventListener('click', ()=>{ const da = Number(dailyAmountInput.value || 0); const sd = startDateInput.value; if(!sd){ alert('Select a start date'); return; } if(da <= 0){ if(!confirm('Daily amount is 0 or negative. Continue?')) return; } settings.dailyAmount = da; settings.startDate = sd; audit.push({ts:new Date().toISOString(), action:'save_settings', note: JSON.stringify(settings)}); persistAll(); alert('Settings saved. Click "Generate Scheduled Days" to create scheduled entries from start date to today.'); });
+
+    generateBtn.addEventListener('click', ()=>{ generateScheduled(); });
+
+    applyMode.addEventListener('change', ()=>{ specificDatesArea.style.display = applyMode.value === 'specific' ? 'block' : 'none'; });
+
+    addPaymentBtn.addEventListener('click', ()=>{ const pd = paymentDate.value || K.todayISO(); const amt = Number(paymentAmount.value || 0); const note = paymentNote.value || ''; const mode = applyMode.value; if(amt <= 0){ alert('Enter a positive amount'); return; } const payment = { id: 'P'+Date.now(), paymentDate: pd, amount: Number(amt), note, mode, createdAt: new Date().toISOString(), applications: [], otherId: null, leftover: 0 }; if(mode === 'oldest'){ let remainingToApply = Number(amt); for(const s of scheduled){ if(remainingToApply <= 0) break; const avail = Number(s.remaining); if(avail > 0){ const applyAmt = Math.min(avail, remainingToApply); payment.applications.push({ date: s.date, amount: Number(applyAmt) }); s.remaining = Number((s.remaining - applyAmt).toFixed(2)); remainingToApply = Number((remainingToApply - applyAmt).toFixed(2)); } } if(remainingToApply > 0){ payment.leftover = Number(remainingToApply.toFixed(2)); } } else if(mode === 'specific'){ const list = specificDatesInput.value.split(',').map(s=>s.trim()).filter(Boolean); let remainingToApply = Number(amt); for(const d of list){ const s = scheduled.find(x=>x.date === d); if(!s) continue; const avail = Number(s.remaining); if(avail <= 0) continue; const applyAmt = Math.min(avail, remainingToApply); payment.applications.push({ date: s.date, amount: Number(applyAmt) }); s.remaining = Number((s.remaining - applyAmt).toFixed(2)); remainingToApply = Number((remainingToApply - applyAmt).toFixed(2)); } if(remainingToApply > 0){ payment.leftover = Number(remainingToApply.toFixed(2)); } } else if(mode === 'other'){ const other = { id: 'O'+Date.now(), date: pd, amount: Number(amt), note }; otherSadqa.push(other); payment.otherId = other.id; payment.leftover = 0; } payments.push(payment); audit.push({ts:new Date().toISOString(), action:'add_payment', note: JSON.stringify(payment)}); persistAll(); recalcAndRender(); paymentAmount.value=''; paymentNote.value=''; specificDatesInput.value=''; });
+
+    applyCreditToFutureBtn.addEventListener('click', ()=>{ const credit = computeCreditAmount(); if(credit <= 0){ alert('No credit to apply'); return; } let remainingCredit = credit; const createdAt = new Date().toISOString(); for(const s of scheduled){ if(remainingCredit <= 0) break; if(Number(s.remaining) > 0){ const applyAmt = Math.min(Number(s.remaining), remainingCredit); const p = { id: 'PC'+Date.now()+Math.random().toString(36).slice(2,6), paymentDate: K.todayISO(), amount: applyAmt, note: 'Apply credit', mode:'credit_apply', createdAt, applications:[{date:s.date, amount:applyAmt}], otherId:null, leftover:0 }; payments.push(p); s.remaining = Number((s.remaining - applyAmt).toFixed(2)); remainingCredit = Number((remainingCredit - applyAmt).toFixed(2)); } } audit.push({ts:new Date().toISOString(), action:'apply_credit', note:`applied ${credit - remainingCredit} to future`}); persistAll(); recalcAndRender(); alert('Applied credit to scheduled days'); });
+
+    function computeCreditAmount(){ const paidForSchedule = payments.filter(p=>p.mode !== 'other').reduce((s,p)=>s + Number(p.amount),0); const appliedSum = payments.reduce((s,p)=> s + (p.applications? p.applications.reduce((ss,a)=>ss+Number(a.amount),0):0), 0); let credit = Number((paidForSchedule - appliedSum).toFixed(2)); if(credit < 0) credit = 0; return credit; }
+
+    exportCsvBtn.addEventListener('click', ()=>{ let csv = 'type,date,amount,remaining,note,applied_to\n'; scheduled.forEach(s=> csv += `scheduled,${s.date},${s.amount},${Math.max(0,s.remaining)},,\n`); payments.forEach(p=>{ const applied = p.applications ? p.applications.map(a=>`${a.date}:${a.amount}`).join('|') : ''; csv += `payment,${p.paymentDate},${p.amount},,${(p.note||'')},${applied}\n`; }); otherSadqa.forEach(o=> csv += `other,${o.date},${o.amount},,${(o.note||'')},\n`); const blob = new Blob([csv],{type:'text/csv'}); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'sadqa_export.csv'; a.click(); URL.revokeObjectURL(url); });
+
+    clearAllBtn.addEventListener('click', ()=>{ if(!confirm('This will clear all data (settings, scheduled days, payments, other sadqa). Continue?')) return; localStorage.removeItem(LS.settings); localStorage.removeItem(LS.scheduled); localStorage.removeItem(LS.payments); localStorage.removeItem(LS.audit); localStorage.removeItem(LS.otherSadqa); settings = { dailyAmount:10, startDate: K.todayISO() }; scheduled = []; payments = []; otherSadqa = []; audit = []; renderSettings(); recalcAndRender(); });
+
+    window.editPayment = function(idx){ const p = payments[idx]; if(!p) return; const newAmt = prompt('Edit amount', p.amount); if(newAmt === null) return; const amt = Number(newAmt); if(isNaN(amt)) return alert('Invalid'); p.amount = amt; p.note = prompt('Edit note', p.note) || p.note; p.editedAt = new Date().toISOString(); audit.push({ts:new Date().toISOString(), action:'edit_payment', note: JSON.stringify({id:p.id,amount:p.amount})}); scheduled.forEach(s=> s.remaining = Number(s.amount)); for(const pay of payments){ pay.applications = []; } for(const pay of payments){ if(pay.mode === 'other') continue; let rem = pay.amount; for(const s of scheduled){ if(s.remaining > 0 && rem > 0){ const apply = Math.min(s.remaining, rem); pay.applications.push({date:s.date, amount:apply}); s.remaining = Number((s.remaining - apply).toFixed(2)); rem = Number((rem - apply).toFixed(2)); } } if(rem > 0) pay.leftover = rem; } persistAll(); recalcAndRender(); }
+
+    window.deletePayment = function(idx){ if(!confirm('Delete this payment?')) return; const p = payments.splice(idx,1)[0]; if(p && p.otherId){ const oi = otherSadqa.findIndex(o=>o.id === p.otherId); if(oi !== -1) otherSadqa.splice(oi,1); } audit.push({ts:new Date().toISOString(), action:'delete_payment', note: JSON.stringify(p)}); scheduled.forEach(s=> s.remaining = Number(s.amount)); for(const pay of payments){ if(pay.applications){ pay.applications.forEach(a=>{ const s = scheduled.find(x=>x.date===a.date); if(s) s.remaining = Number((s.remaining - a.amount).toFixed(2)); }); } } persistAll(); recalcAndRender(); }
+
+    window.editScheduled = function(date){ const s = scheduled.find(x=>x.date===date); if(!s) return; const newAmt = prompt('Edit scheduled amount', s.amount); if(newAmt===null) return; s.amount = Number(newAmt); s.remaining = Math.min(s.remaining, s.amount); audit.push({ts:new Date().toISOString(), action:'edit_scheduled', note:date}); persistAll(); recalcAndRender(); }
+    window.deleteScheduled = function(date){ if(!confirm('Delete scheduled date?')) return; scheduled = scheduled.filter(x=>x.date !== date); audit.push({ts:new Date().toISOString(), action:'delete_scheduled', note:date}); persistAll(); recalcAndRender(); }
+
+    window.editOther = function(idx){ const o = otherSadqa[idx]; if(!o) return; const newAmt = prompt('Edit amount', o.amount); if(newAmt===null) return; o.amount = Number(newAmt); o.note = prompt('Edit note', o.note) || o.note; o.editedAt = new Date().toISOString(); audit.push({ts:new Date().toISOString(), action:'edit_other', note: JSON.stringify(o)}); persistAll(); recalcAndRender(); }
+    window.deleteOther = function(idx){ if(!confirm('Delete this other sadqa entry?')) return; const o = otherSadqa.splice(idx,1)[0]; const linked = payments.find(p=>p.otherId === o.id); if(linked) linked.otherId = null; audit.push({ts:new Date().toISOString(), action:'delete_other', note: JSON.stringify(o)}); persistAll(); recalcAndRender(); }
+
+    function init(){ renderSettings(); recalcAndRender(); paymentDate.value = K.todayISO(); }
+    init();
+  </script>
+</body>
+</html>
